@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+:root {
+  --primary: #004831;
+  --primary-dark: #00321f;
+  --accent: #afca31;
+  --accent-dark: #8ba225;
+  --background: #f6faf4;
+  --surface: #ffffff;
+  --surface-muted: #eef5ec;
+  --text: #0e1c16;
+  --muted: #5a6c63;
+  --border: #dce6df;
+  --shadow-color: 0deg 0% 50%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 20%, rgba(175, 202, 49, 0.2), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(0, 72, 49, 0.12), transparent 50%),
+    var(--background);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.app-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  box-shadow: 0 15px 30px rgba(0, 72, 49, 0.05);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: none;
+  padding: 14px 28px;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 12px 24px rgba(0, 72, 49, 0.2);
+}
+
+.primary-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(0, 72, 49, 0.25);
+}
+
+.secondary-button {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 12px 24px;
+  font-weight: 600;
+  color: var(--primary);
+  background: rgba(0, 72, 49, 0.08);
+  transition: background 0.2s ease, border 0.2s ease;
+}
+
+.secondary-button:hover {
+  background: rgba(0, 72, 49, 0.12);
+  border-color: var(--primary);
+}
+
+.glass-pane {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 20px 40px rgba(0, 72, 49, 0.08);
+}
+
+.input-field,
+.text-area {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 14px 16px;
+  font-size: 1rem;
+  color: var(--text);
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-field:focus,
+.text-area:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 72, 49, 0.12);
+}
