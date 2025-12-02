@@ -2,7 +2,7 @@ import "server-only";
 
 export const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ||
-  "http://localhost:3000";
+  "http://localhost:3333";
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

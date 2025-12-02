@@ -226,6 +226,22 @@ def process_segment_task(request: ProcessSegmentRequest) -> None:
     notify_backend(request.callback_url, payload)
 
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint to verify service is ready."""
+    try:
+        system_instance = get_system()
+        return {
+            "status": "healthy",
+            "models_loaded": True,
+            "enrolled_speakers": len(system_instance.recognizer.get_enrolled_speakers()),
+        }
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=503, detail=f"Service not ready: {exc}"
+        ) from exc
+
+
 @app.on_event("startup")
 async def startup_event():
     try:
@@ -240,8 +256,24 @@ async def process_audio_endpoint(
     request: ProcessRequest,
     background_tasks: BackgroundTasks,
 ):
+    # Normalize path for Windows compatibility
+    # Backend now sends forward slashes, but we need to convert them back to backslashes on Windows
+    import platform
+    if platform.system() == "Windows":
+        # Convert forward slashes to backslashes for Windows
+        normalized_audio_path = request.audio_path.replace("/", "\\")
+    else:
+        # Keep forward slashes for Unix-like systems
+        normalized_audio_path = request.audio_path
+    
+    request.audio_path = normalized_audio_path
+    
+    print(f"[DEBUG] Original path: {request.audio_path}")
+    print(f"[DEBUG] Normalized path: {normalized_audio_path}")
+    print(f"[DEBUG] Path exists: {Path(request.audio_path).exists()}")
+    
     if not Path(request.audio_path).exists():
-        raise HTTPException(status_code=400, detail="Audio path not found")
+        raise HTTPException(status_code=400, detail=f"Audio path not found: {request.audio_path}")
 
     background_tasks.add_task(process_audio_task, request)
     return {"status": "queued", "meetingId": request.meetingId}
@@ -252,8 +284,20 @@ async def process_segment_endpoint(
     request: ProcessSegmentRequest,
     background_tasks: BackgroundTasks,
 ):
+    # Normalize path for Windows compatibility
+    # Backend now sends forward slashes, but we need to convert them back to backslashes on Windows
+    import platform
+    if platform.system() == "Windows":
+        # Convert forward slashes to backslashes for Windows
+        normalized_segment_path = request.segment_path.replace("/", "\\")
+    else:
+        # Keep forward slashes for Unix-like systems
+        normalized_segment_path = request.segment_path
+    
+    request.segment_path = normalized_segment_path
+    
     if not Path(request.segment_path).exists():
-        raise HTTPException(status_code=400, detail="Segment path not found")
+        raise HTTPException(status_code=400, detail=f"Segment path not found: {request.segment_path}")
 
     background_tasks.add_task(process_segment_task, request)
     return {

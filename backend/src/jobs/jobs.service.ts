@@ -28,6 +28,38 @@ export class JobsService {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Wait for Python service to be ready with exponential backoff
+   */
+  private async waitForPythonService(
+    pythonServiceUrl: string,
+    maxRetries = 5,
+  ): Promise<boolean> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        this.logger.log(
+          `[DEBUG] Checking Python service health (attempt ${i + 1}/${maxRetries})...`,
+        );
+        const response = await axios.get(`${pythonServiceUrl}/health`, {
+          timeout: 5000,
+        });
+        if (response.status === 200) {
+          this.logger.log(
+            `[SUCCESS] Python service is healthy: ${JSON.stringify(response.data)}`,
+          );
+          return true;
+        }
+      } catch (error) {
+        const waitTime = Math.min(1000 * Math.pow(2, i), 10000); // Max 10s
+        this.logger.warn(
+          `[WARN] Python service not ready yet (attempt ${i + 1}/${maxRetries}). Retrying in ${waitTime}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      }
+    }
+    return false;
+  }
+
   async dispatchProcessingJob(meetingId: string, audioPath: string) {
     this.logger.log(`[DEBUG] Starting processing job for meeting ${meetingId}`);
     this.logger.log(`[DEBUG] Audio path: ${audioPath}`);
@@ -69,8 +101,28 @@ export class JobsService {
         const cleanCallbackBaseUrl = callbackBaseUrl.replace(/\/$/, '');
         const callbackUrl = `${cleanCallbackBaseUrl}/meetings/${meetingId}/callback`;
 
+        // FIX: Normalize path - convert Windows backslashes to forward slashes
+        // This prevents double-escaping issues when sending via HTTP JSON
+        const normalizedAudioPath = audioPath.replace(/\\/g, '/');
+
         this.logger.log(
-          `[DEBUG] Calling Python service /process endpoint directly`,
+          `[DEBUG] Original path: ${audioPath}`,
+        );
+        this.logger.log(`[DEBUG] Normalized path: ${normalizedAudioPath}`);
+
+        // CRITICAL FIX: Wait for Python service to be ready before sending request
+        this.logger.log(`[DEBUG] Waiting for Python service to be ready...`);
+        const isReady = await this.waitForPythonService(pythonServiceUrl);
+        if (!isReady) {
+          const error = new Error(
+            'Python service is not ready after multiple retries',
+          );
+          this.logger.error(`[ERROR] ${error.message}`);
+          throw error;
+        }
+
+        this.logger.log(
+          `[DEBUG] Calling Python service /process endpoint`,
         );
         this.logger.log(`[DEBUG] Callback URL: ${callbackUrl}`);
 
@@ -79,7 +131,7 @@ export class JobsService {
             `${pythonServiceUrl}/process`,
             {
               meetingId,
-              audio_path: audioPath,
+              audio_path: normalizedAudioPath,
               callback_url: callbackUrl,
               language: 'vi',
             },
