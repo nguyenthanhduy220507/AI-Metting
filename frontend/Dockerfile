@@ -21,10 +21,14 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
+# Install typescript for next.config.ts
+RUN npm install -D typescript
+
 # Copy built files from builder
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/tsconfig.json ./
 
 # Expose port
 EXPOSE 3000
