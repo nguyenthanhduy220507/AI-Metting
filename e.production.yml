@@ -1,0 +1,5 @@
+[33mb4ae44c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Add USER_GUIDE.md for end users
+[33mbd88ccc[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Update README with Docker Hub deployment instructions
+[33mb53c823[m Add Docker Hub deployment support
+[33m22f0dcf[m Fix: Add frontend folder content (was submodule)
+[33mdbc7f43[m Initial commit: Add comprehensive documentation and Docker setup

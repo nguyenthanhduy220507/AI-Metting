@@ -87,7 +87,7 @@ services:
       - uploads:/app/uploads
 
   python-service:
-    image: ${DOCKER_USERNAME:-nguyenthanhduy220507}/ai-meeting-python:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-python:${VERSION:-latest}
     container_name: ai-meeting-python
     restart: unless-stopped
     ports:
@@ -109,7 +109,7 @@ services:
       - meeting_output:/app/meeting_output
 
   fe-dashboard:
-    image: ${DOCKER_USERNAME:-nguyenthanhduy220507}/ai-meeting-frontend:${VERSION:-latest}
+    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-frontend:${VERSION:-latest}
     container_name: ai-meeting-frontend
     restart: unless-stopped
     ports:
