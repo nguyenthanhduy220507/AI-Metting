@@ -54,6 +54,30 @@ cd fe-dashboard && npm start
 
 **📖 Xem [QUICK_START.md](./QUICK_START.md) để có hướng dẫn chi tiết từng bước.**
 
+## 🐳 Deploy với Docker Hub (Khuyến nghị!)
+
+**Người dùng chỉ cần Docker Desktop!**
+
+```bash
+# 1. Tạo file cấu hình
+cat > .env.production << 'EOF'
+DOCKER_USERNAME=nguyenthanhduyznake
+PYTHON_SERVICE_CALLBACK_TOKEN=your-secret-token
+HF_TOKEN=your-huggingface-token
+GOOGLE_API_KEY=your-google-api-key
+EOF
+
+# 2. Pull images từ Docker Hub
+docker compose -f docker-compose.production.yml pull
+
+# 3. Khởi động tất cả services
+docker compose -f docker-compose.production.yml up -d
+
+# 4. Truy cập: http://localhost
+```
+
+**📖 Xem [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) để có hướng dẫn deployment chi tiết.**
+
 ## 📋 Mục lục
 
 - [Yêu cầu hệ thống](#yêu-cầu-hệ-thống)
@@ -61,6 +85,7 @@ cd fe-dashboard && npm start
 - [Cấu hình](#cấu-hình)
 - [Chạy hệ thống](#chạy-hệ-thống)
 - [Docker Setup](#docker-setup)
+- [Docker Hub Deployment](#docker-hub-deployment)
 - [pgAdmin Setup](#pgadmin-setup)
 - [Seed Data](#seed-data)
 - [API Documentation](#api-documentation)
@@ -345,6 +370,42 @@ docker compose logs -f postgres
 # Chỉ Redis
 docker compose logs -f redis
 ```
+
+## 🐳 Docker Hub Deployment
+
+### Cho Người dùng (Chỉ cần Docker Desktop!)
+
+**Cách deploy nhanh nhất - Pull images từ Docker Hub:**
+
+```bash
+# 1. Tạo file .env.production
+cat > .env.production << 'EOF'
+DOCKER_USERNAME=nguyenthanhduyznake
+PYTHON_SERVICE_CALLBACK_TOKEN=your-secret-token-here
+HF_TOKEN=your-huggingface-token
+GOOGLE_API_KEY=your-google-api-key
+EOF
+
+# 2. Pull images từ Docker Hub
+docker compose -f docker-compose.production.yml pull
+
+# 3. Khởi động services
+docker compose -f docker-compose.production.yml up -d
+
+# 4. Truy cập
+# Frontend: http://localhost
+# Backend: http://localhost:3333
+# pgAdmin: http://localhost:5050
+```
+
+### Docker Hub Images
+
+Images đã có sẵn trên Docker Hub:
+- `nguyenthanhduyznake/ai-meeting-backend:latest`
+- `nguyenthanhduyznake/ai-meeting-frontend:latest`
+- `nguyenthanhduyznake/ai-meeting-python:latest`
+
+**📖 Xem chi tiết:** [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md)
 
 ### Reset Database
 
