@@ -13,6 +13,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/init-data.sql:/docker-entrypoint-initdb.d/01-init-data.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-meeting}"]
       interval: 10s
@@ -108,12 +109,25 @@ services:
       - speaker_db:/app/speaker_db
       - meeting_output:/app/meeting_output
 
-  fe-dashboard:
-    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-frontend:${VERSION:-latest}
-    container_name: ai-meeting-frontend
+  frontend:
+    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-nextjs:${VERSION:-latest}
+    container_name: ai-meeting-nextjs
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3333
+    depends_on:
+      - backend
+    networks:
+      - ai-meeting-network
+
+  fe-dashboard:
+    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-dashboard:${VERSION:-latest}
+    container_name: ai-meeting-dashboard
+    restart: unless-stopped
+    ports:
+      - "4000:80"
     depends_on:
       - backend
     networks:

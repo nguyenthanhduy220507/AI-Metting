@@ -57,9 +57,14 @@ docker compose -f docker-compose.production.yml up -d
 
 ### Bước 5: Truy cập
 
-- ✅ **Frontend**: http://localhost
+- ✅ **Frontend (Next.js)**: http://localhost - **Giao diện chính**
+- ✅ **Dashboard (React)**: http://localhost:4000 - **Giao diện quản lý chi tiết**
 - ✅ **pgAdmin**: http://localhost:5050 (admin@admin.com / admin)
 - ✅ **Backend API**: http://localhost:3333
+
+**Lưu ý**: Hệ thống có 2 giao diện:
+- **Frontend (Next.js)** - Port 80 - Giao diện đẹp, hiện đại
+- **Dashboard (React)** - Port 4000 - Đầy đủ tính năng quản lý (audio player, highlights, comments)
 
 ---
 

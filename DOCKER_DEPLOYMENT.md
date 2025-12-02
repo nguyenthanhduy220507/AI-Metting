@@ -62,12 +62,17 @@ docker exec ai-meeting-backend npm run seed
 
 ### Bước 5: Truy cập ứng dụng
 
-- **Frontend**: http://localhost
+- **Frontend (Next.js)**: http://localhost - Giao diện chính
+- **Dashboard (React)**: http://localhost:4000 - Giao diện quản lý chi tiết
 - **Backend API**: http://localhost:3333
 - **pgAdmin**: http://localhost:5050
   - Email: `admin@admin.com`
   - Password: `admin`
 - **Python Service Docs**: http://localhost:5000/docs
+
+**Lưu ý**: Hệ thống có 2 giao diện, cả 2 đều chạy đồng thời:
+- Frontend (Next.js) - Giao diện hiện đại, đơn giản
+- Dashboard (React) - Đầy đủ tính năng (audio player, highlights, comments, notes)
 
 ## Commands
 
