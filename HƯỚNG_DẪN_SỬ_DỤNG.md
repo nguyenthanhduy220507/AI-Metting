@@ -203,13 +203,15 @@ docker compose -f docker-compose.production.yml up -d
 docker compose -f docker-compose.production.yml ps
 ```
 
-Phải thấy 5 containers đang chạy:
-- ✅ ai-meeting-postgres (healthy)
-- ✅ ai-meeting-redis (healthy)
-- ✅ ai-meeting-pgadmin (Up)
-- ✅ ai-meeting-backend (Up)
-- ✅ ai-meeting-python (Up)
-- ✅ ai-meeting-frontend (Up)
+Phải thấy 7 containers đang chạy:
+- ✅ ai-meeting-postgres (healthy) - Database
+- ✅ ai-meeting-redis (healthy) - Queue
+- ✅ ai-meeting-pgadmin (Up) - Database management
+- ✅ ai-meeting-backend (Up) - Backend API
+- ✅ ai-meeting-worker (Up) - **Worker xử lý jobs** (QUAN TRỌNG!)
+- ✅ ai-meeting-python (Up) - Python processing service
+- ✅ ai-meeting-nextjs (Up) - Frontend (Next.js)
+- ✅ ai-meeting-dashboard (Up) - Dashboard (React)
 
 ---
 

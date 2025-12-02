@@ -87,6 +87,36 @@ services:
     volumes:
       - uploads:/app/uploads
 
+  backend-worker:
+    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-backend:${VERSION:-latest}
+    container_name: ai-meeting-worker
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-meeting}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meeting}
+      POSTGRES_DB: ${POSTGRES_DB:-meeting_notes}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PYTHON_SERVICE_URL: http://python-service:5000
+      PYTHON_SERVICE_CALLBACK_TOKEN: ${PYTHON_SERVICE_CALLBACK_TOKEN}
+      BACKEND_CALLBACK_BASE_URL: http://backend:3333
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-8}
+      NODE_ENV: production
+    command: ["node", "dist/workers/worker.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - ai-meeting-network
+    volumes:
+      - uploads:/app/uploads
+
   python-service:
     image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-python:${VERSION:-latest}
     container_name: ai-meeting-python
