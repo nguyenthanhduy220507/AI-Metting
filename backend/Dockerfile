@@ -2,6 +2,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Install ffmpeg for audio processing
+RUN apk add --no-cache ffmpeg
+
 # Copy package files
 COPY package*.json ./
 RUN npm ci
@@ -16,6 +19,9 @@ RUN npm run build
 FROM node:18-alpine
 
 WORKDIR /app
+
+# Install ffmpeg for audio processing (required for audio segmentation)
+RUN apk add --no-cache ffmpeg
 
 # Copy package files
 COPY package*.json ./
