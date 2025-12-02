@@ -587,13 +587,20 @@ AI-Metting/
 │   ├── uploads/            # Uploaded audio files (gitignored)
 │   └── .env.example        # Environment variables template
 │
-├── fe-dashboard/            # React Frontend Dashboard
+├── fe-dashboard/            # React Frontend Dashboard (Port 4000)
 │   ├── src/
 │   │   ├── pages/          # Page components
 │   │   ├── components/     # Reusable components
 │   │   ├── services/       # API services
 │   │   └── types/          # TypeScript types
 │   └── .env.example        # Environment variables template
+│
+├── frontend/                # Next.js Frontend (Port 3000) - Alternative UI
+│   ├── src/
+│   │   ├── app/            # Next.js App Router pages
+│   │   ├── components/     # Reusable components
+│   │   └── types/          # TypeScript types
+│   └── Dockerfile          # Docker production build
 │
 ├── python-service-metting/ # Python Processing Service
 │   ├── api.py              # FastAPI endpoints
