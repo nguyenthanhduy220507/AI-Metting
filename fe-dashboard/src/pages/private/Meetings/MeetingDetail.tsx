@@ -156,6 +156,12 @@ const MeetingDetail: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatTimeMMSS = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleTimeUpdate = (time: number, dur: number) => {
     setCurrentTime(time);
     setDuration(dur);
@@ -205,9 +211,6 @@ const MeetingDetail: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Top Border */}
-      <div className="h-1 bg-blue-500" />
-
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center space-x-4">
@@ -238,55 +241,57 @@ const MeetingDetail: React.FC = () => {
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
         <div className="flex items-center space-x-8">
           {/* Progress Indicator */}
-          <div className="flex items-center space-x-3">
-            <div className="relative w-16 h-16">
-              <svg className="transform -rotate-90 w-16 h-16">
-                <circle
-                  cx="32"
-                  cy="32"
-                  r="28"
-                  stroke="#e5e7eb"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <circle
-                  cx="32"
-                  cy="32"
-                  r="28"
-                  stroke="#f97316"
-                  strokeWidth="4"
-                  fill="none"
-                  strokeDasharray={`${2 * Math.PI * 28}`}
-                  strokeDashoffset={`${2 * Math.PI * 28 * (1 - progressData.progress / 100)}`}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold text-orange-600">{progressData.progress}%</span>
+          <div className="flex items-center space-x-4">
+            {/* Progress circle + Completed (dọc) */}
+            <div className="flex flex-col items-center space-y-2">
+              <div className="relative w-16 h-16">
+                <svg className="transform -rotate-90 w-16 h-16">
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    stroke="#e5e7eb"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    stroke="#f97316"
+                    strokeWidth="4"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 28}`}
+                    strokeDashoffset={`${2 * Math.PI * 28 * (1 - progressData.progress / 100)}`}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xl font-bold text-orange-600">{progressData.progress}%</span>
+                </div>
+              </div>
+              <div className="text-sm text-center">
+                <div className="font-semibold text-gray-900">Completed</div>
               </div>
             </div>
-            <div className="text-sm">
-              <div className="font-semibold text-gray-900">Completed</div>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1.5">
-              <div className="w-3 h-3 rounded-full bg-gray-400" />
-              <span className="text-xs text-gray-600">Lost</span>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <div className="w-3 h-3 rounded-full bg-orange-500" />
-              <span className="text-xs text-gray-600">Listened</span>
-            </div>
-            <div className="flex items-center space-x-1.5">
-              <div className="w-3 h-3 rounded-full bg-teal-500" />
-              <span className="text-xs text-gray-600">Not processed</span>
+            {/* Legend (dọc bên phải) */}
+            <div className="flex flex-col space-y-2">
+              <div className="flex items-center space-x-1.5">
+                <div className="w-3 h-3 rounded-full bg-gray-400" />
+                <span className="text-xs text-gray-600">Lost</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-3 h-3 rounded-full bg-orange-500" />
+                <span className="text-xs text-gray-600">Listened</span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-3 h-3 rounded-full bg-teal-500" />
+                <span className="text-xs text-gray-600">Not processed</span>
+              </div>
             </div>
           </div>
 
           {/* Waveform Icon + Minutes */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <div className="w-6 h-6 flex items-center justify-center">
               <div className="flex space-x-0.5">
                 {[0.3, 0.7, 0.5, 0.9, 0.4, 0.6, 0.8, 0.5].map((height, i) => (
@@ -298,9 +303,12 @@ const MeetingDetail: React.FC = () => {
                 ))}
               </div>
             </div>
-            <span className="text-sm font-medium text-gray-700">
-              {formatMinutes(progressData.processedDuration)} Minutes processed
-            </span>
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold text-gray-900">
+                {formatTimeMMSS(progressData.processedDuration)}
+              </span>
+              <span className="text-xs text-gray-500">Minutes processed</span>
+            </div>
           </div>
         </div>
 
@@ -402,9 +410,6 @@ const MeetingDetail: React.FC = () => {
           <RightPanel meeting={meeting} onUpdate={fetchMeeting} />
         )}
       </div>
-
-      {/* Bottom Border */}
-      <div className="h-1 bg-blue-500" />
     </div>
   );
 };

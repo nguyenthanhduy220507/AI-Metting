@@ -74,6 +74,13 @@ coverage/
 .tmp/
 .temp/
 
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
 # Database
 *.sqlite
 *.sqlite3

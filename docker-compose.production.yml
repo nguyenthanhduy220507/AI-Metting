@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-meeting-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-meeting}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meeting}
+      POSTGRES_DB: ${POSTGRES_DB:-meeting_notes}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-meeting}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-meeting-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ai-meeting-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ai-meeting-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-meeting-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-meeting-network
+
+  backend:
+    image: ${DOCKER_USERNAME:-nguyenthanhduyznake}/ai-meeting-backend:${VERSION:-latest}
+    container_name: ai-meeting-backend
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-meeting}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meeting}
+      POSTGRES_DB: ${POSTGRES_DB:-meeting_notes}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PYTHON_SERVICE_URL: http://python-service:5000
+      PYTHON_SERVICE_CALLBACK_TOKEN: ${PYTHON_SERVICE_CALLBACK_TOKEN}
+      BACKEND_CALLBACK_BASE_URL: http://backend:3333
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-8}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ai-meeting-network
+    volumes:
+      - uploads:/app/uploads
+
+  python-service:
+    image: ${DOCKER_USERNAME:-nguyenthanhduy220507}/ai-meeting-python:${VERSION:-latest}
+    container_name: ai-meeting-python
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      HF_TOKEN: ${HF_TOKEN}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      BACKEND_CALLBACK_TOKEN: ${PYTHON_SERVICE_CALLBACK_TOKEN}
+      SERVICE_API_TOKEN: ${PYTHON_SERVICE_CALLBACK_TOKEN}
+      DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-vi}
+      OUTPUT_DIR: meeting_output
+      ENROLL_DIR: speaker_samples
+      SPEAKER_DB_DIR: speaker_db
+    networks:
+      - ai-meeting-network
+    volumes:
+      - uploads:/app/uploads
+      - speaker_db:/app/speaker_db
+      - meeting_output:/app/meeting_output
+
+  fe-dashboard:
+    image: ${DOCKER_USERNAME:-nguyenthanhduy220507}/ai-meeting-frontend:${VERSION:-latest}
+    container_name: ai-meeting-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - ai-meeting-network
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  redis_data:
+    driver: local
+  uploads:
+    driver: local
+  speaker_db:
+    driver: local
+  meeting_output:
+    driver: local
+
+networks:
+  ai-meeting-network:
+    driver: bridge
+

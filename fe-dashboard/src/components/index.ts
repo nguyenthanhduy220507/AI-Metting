@@ -5,3 +5,4 @@ export { default as ConfirmDialog } from "./common/ConfirmDialog";
 export { AudioWaveform } from "./common/AudioWaveform";
 export { AudioPlayer } from "./common/AudioPlayer";
 export { RightPanel } from "./common/RightPanel";
+export { LiveRecorder } from "./common/LiveRecorder";

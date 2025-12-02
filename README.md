@@ -166,8 +166,8 @@ REACT_APP_API_URL=http://localhost:3333
 
 ```bash
 # Từ thư mục root của project
-docker compose up -d
-```
+   docker compose up -d
+   ```
 
 **Lệnh này sẽ tự động:**
 - ✅ Tạo và khởi động PostgreSQL container (port 5432)
@@ -221,7 +221,7 @@ source venv/bin/activate
 
 # Cài đặt dependencies
 pip install -r requirements.txt
-```
+   ```
 
 ## ⚙️ Cấu hình
 
@@ -250,8 +250,8 @@ Mặc định, files được lưu trong `backend/uploads/`. Đảm bảo Python
 ### 1. Khởi động Backend API
 
 ```bash
-cd backend
-npm run start:dev
+   cd backend
+   npm run start:dev
 ```
 
 Backend sẽ chạy tại: http://localhost:3333
@@ -272,15 +272,15 @@ Worker này xử lý các jobs trong queue (segmentation, processing).
 Mở terminal mới:
 
 ```bash
-cd python-service-metting
+   cd python-service-metting
 
 # Kích hoạt virtual environment nếu chưa
 venv\Scripts\activate  # Windows
 # hoặc
 source venv/bin/activate  # Linux/Mac
 
-uvicorn api:app --host 0.0.0.0 --port 5000
-```
+   uvicorn api:app --host 0.0.0.0 --port 5000
+   ```
 
 Python service sẽ chạy tại: http://localhost:5000
 
