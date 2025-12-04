@@ -60,6 +60,10 @@ class EnrollSpeakerRequest(BaseModel):
     force: bool = False
 
 
+class RenameSpeakerRequest(BaseModel):
+    new_name: str
+
+
 def ensure_directories() -> None:
     DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     SPEAKER_DB_DIR.mkdir(parents=True, exist_ok=True)
@@ -432,5 +436,69 @@ async def enroll_speaker_endpoint(
         traceback.print_exc()
         raise HTTPException(
             status_code=500, detail=f"Enrollment failed: {exc}"
+        ) from exc
+
+
+@app.put("/speakers/{old_name}/rename")
+async def rename_speaker_endpoint(
+    old_name: str,
+    request: RenameSpeakerRequest,
+    x_service_token: Optional[str] = Header(default=None),
+):
+    """Rename a speaker in speaker_db.pkl while preserving embeddings."""
+    print(f"[DEBUG] Rename request: old_name='{old_name}', new_name='{request.new_name}'")
+    
+    if SERVICE_API_TOKEN and x_service_token != SERVICE_API_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid service token")
+    
+    if not request.new_name or not request.new_name.strip():
+        raise HTTPException(status_code=400, detail="new_name is required")
+    
+    new_name = request.new_name.strip()
+    
+    if old_name == new_name:
+        raise HTTPException(status_code=400, detail="New name must be different from old name")
+    
+    system_instance = get_system()
+    
+    # Debug: Log all speakers in PKL
+    all_speakers = system_instance.recognizer.db.list_speakers()
+    print(f"[DEBUG] Speakers in PKL: {all_speakers}")
+    print(f"[DEBUG] Looking for speaker: '{old_name}'")
+    print(f"[DEBUG] Has speaker: {system_instance.recognizer.db.has_speaker(old_name)}")
+    
+    try:
+        # Check if old speaker exists
+        if not system_instance.recognizer.db.has_speaker(old_name):
+            print(f"[ERROR] Speaker '{old_name}' not found in PKL")
+            print(f"[ERROR] Available speakers: {all_speakers}")
+            raise HTTPException(
+                status_code=404, detail=f"Speaker '{old_name}' not found in PKL. Available: {all_speakers}"
+            )
+        
+        # Rename speaker
+        print(f"[DEBUG] Calling rename_speaker: '{old_name}' → '{new_name}'")
+        success = system_instance.recognizer.db.rename_speaker(old_name, new_name)
+        if not success:
+            print(f"[ERROR] rename_speaker returned False")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to rename speaker '{old_name}'"
+            )
+        
+        # Save database
+        print(f"[DEBUG] Saving database...")
+        system_instance.recognizer.db.save()
+        print(f"[OK] Renamed speaker successfully: '{old_name}' → '{new_name}'")
+        
+        return {"status": "success", "old_name": old_name, "new_name": new_name}
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        # New name already exists
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to rename speaker: {exc}"
         ) from exc
 

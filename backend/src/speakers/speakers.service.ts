@@ -10,9 +10,12 @@ import { Repository } from 'typeorm';
 import { Speaker, SpeakerStatus } from './entities/speaker.entity';
 import { SpeakerSample } from './entities/speaker-sample.entity';
 import { CreateSpeakerDto } from './dto/create-speaker.dto';
+import { UpdateSpeakerDto } from './dto/update-speaker.dto';
 import { StorageService } from '../storage/storage.service';
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
+import { Utterance } from '../meetings/entities/utterance.entity';
+import { MeetingStatus } from '../meetings/entities/meeting.entity';
 
 @Injectable()
 export class SpeakersService {
@@ -23,6 +26,8 @@ export class SpeakersService {
     private readonly speakerRepository: Repository<Speaker>,
     @InjectRepository(SpeakerSample)
     private readonly sampleRepository: Repository<SpeakerSample>,
+    @InjectRepository(Utterance)
+    private readonly utteranceRepository: Repository<Utterance>,
     private readonly storageService: StorageService,
     private readonly configService: ConfigService,
   ) {}
@@ -111,10 +116,34 @@ export class SpeakersService {
   }
 
   async findAll(): Promise<Speaker[]> {
-    return this.speakerRepository.find({
-    order: { createdAt: 'DESC' },
+    const speakers = await this.speakerRepository.find({
+      order: { createdAt: 'DESC' },
       relations: ['samples'],
     });
+
+    // Count detections (meetings where speaker appears) for each speaker
+    const detectionCounts = await this.utteranceRepository
+      .createQueryBuilder('utterance')
+      .select('utterance.speaker', 'speaker')
+      .addSelect('COUNT(DISTINCT utterance.meetingId)', 'count')
+      .innerJoin('utterance.meeting', 'meeting')
+      .where('meeting.status = :status', { status: MeetingStatus.COMPLETED })
+      .groupBy('utterance.speaker')
+      .getRawMany();
+
+    // Map detection counts to speakers
+    const countsMap = new Map<string, number>();
+    detectionCounts.forEach((row) => {
+      countsMap.set(row.speaker, parseInt(row.count, 10));
+    });
+
+    // Add detectionCount to each speaker
+    const speakersWithCounts = speakers.map((speaker) => ({
+      ...speaker,
+      detectionCount: countsMap.get(speaker.name) || 0,
+    }));
+
+    return speakersWithCounts;
   }
 
   async findOne(id: string): Promise<Speaker> {
@@ -126,6 +155,37 @@ export class SpeakersService {
       throw new NotFoundException('Speaker not found');
     }
     return speaker;
+  }
+
+  async getDetections(speakerId: string) {
+    const speaker = await this.findOne(speakerId);
+
+    // Query meetings where speaker appears
+    const detections = await this.utteranceRepository
+      .createQueryBuilder('utterance')
+      .select('meeting.id', 'meetingId')
+      .addSelect('meeting.title', 'title')
+      .addSelect('meeting.createdAt', 'createdAt')
+      .addSelect('COUNT(utterance.id)', 'utteranceCount')
+      .innerJoin('utterance.meeting', 'meeting')
+      .where('utterance.speaker = :speaker', { speaker: speaker.name })
+      .andWhere('meeting.status = :status', { status: MeetingStatus.COMPLETED })
+      .groupBy('meeting.id')
+      .addGroupBy('meeting.title')
+      .addGroupBy('meeting.createdAt')
+      .orderBy('meeting.createdAt', 'DESC')
+      .getRawMany();
+
+    return {
+      speaker: speaker.name,
+      totalMeetings: detections.length,
+      meetings: detections.map((d) => ({
+        meetingId: d.meetingId,
+        title: d.title || 'Untitled Meeting',
+        createdAt: d.createdAt,
+        utteranceCount: parseInt(d.utteranceCount, 10),
+      })),
+    };
   }
 
   private async triggerEnrollment(
@@ -347,6 +407,86 @@ export class SpeakersService {
 
     await this.speakerRepository.remove(speaker);
     this.logger.log(`Successfully deleted speaker ${speakerName} from DB via callback`);
+  }
+
+  async update(id: string, updateSpeakerDto: UpdateSpeakerDto): Promise<Speaker> {
+    const speaker = await this.speakerRepository.findOne({
+      where: { id },
+    });
+
+    if (!speaker) {
+      throw new NotFoundException('Speaker not found');
+    }
+
+    const newName = updateSpeakerDto.name.trim();
+    const oldName = speaker.name;
+
+    // Check if name is actually changing
+    if (oldName === newName) {
+      return this.findOne(id);
+    }
+
+    // Check if new name already exists
+    const existing = await this.speakerRepository.findOne({
+      where: { name: newName },
+    });
+    if (existing) {
+      throw new BadRequestException('Speaker name already exists');
+    }
+
+    // Call Python service to rename in PKL
+    const pythonServiceUrl =
+      this.configService.get<string>('PYTHON_SERVICE_URL') ||
+      'http://localhost:5000';
+    const token =
+      this.configService.get<string>('PYTHON_SERVICE_CALLBACK_TOKEN') ?? null;
+
+    try {
+      const response = await axios.put(
+        `${pythonServiceUrl}/speakers/${encodeURIComponent(oldName)}/rename`,
+        { new_name: newName },
+        {
+          timeout: 30000,
+          headers: token ? { 'x-service-token': token } : undefined,
+        },
+      );
+      this.logger.log(
+        `Successfully renamed speaker in PKL: ${oldName} → ${newName}`,
+      );
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.detail ||
+        error?.message ||
+        'Unknown error';
+      const statusCode = error?.response?.status;
+
+      // If 404, speaker doesn't exist in PKL
+      if (statusCode === 404) {
+        this.logger.warn(
+          `Speaker ${oldName} not found in PKL (status 404). Continuing with DB update only.`,
+        );
+      } else if (statusCode === 409) {
+        // New name already exists in PKL
+        throw new BadRequestException(
+          `Speaker name '${newName}' already exists in PKL`,
+        );
+      } else {
+        // Other errors
+        this.logger.error(
+          `Failed to rename speaker in PKL (status ${statusCode}): ${errorMessage}`,
+        );
+        throw new InternalServerErrorException(
+          `Failed to rename speaker in PKL: ${errorMessage}`,
+        );
+      }
+    }
+
+    // Update name in PostgreSQL
+    speaker.name = newName;
+    await this.speakerRepository.save(speaker);
+    this.logger.log(`Successfully updated speaker name in DB: ${oldName} → ${newName}`);
+
+    return this.findOne(id);
   }
 }
 

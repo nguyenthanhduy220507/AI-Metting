@@ -119,7 +119,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   return (
-    <div className="flex items-center space-x-4 p-4 bg-white border-t border-gray-200">
+    <div className="fixed bottom-0 left-0 lg:left-64 right-0 z-50 flex items-center space-x-4 p-4 bg-white border-t border-gray-200 shadow-lg">
       <audio ref={audioRef} preload="metadata" />
       
       <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">

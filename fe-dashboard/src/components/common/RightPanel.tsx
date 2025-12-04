@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Meeting } from '../../types/Meeting.type';
 import { meetingsService } from '../../services/meetings.service';
 import { toast } from 'sonner';
+import { Markdown } from '../../utils/markdownUtils';
 
 interface RightPanelProps {
   meeting: Meeting;
   onUpdate: () => void;
 }
 
-type TabType = 'highlights' | 'comments' | 'notes';
+type TabType = 'summary' | 'highlights' | 'comments' | 'notes';
 
 interface Highlight {
   transcriptIndex: number;
@@ -22,7 +23,7 @@ interface Comment {
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('highlights');
+  const [activeTab, setActiveTab] = useState<TabType>('summary');
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [notes, setNotes] = useState<string>('');
@@ -98,8 +99,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
       {/* Tabs */}
       <div className="flex border-b border-gray-200">
         <button
+          onClick={() => setActiveTab('summary')}
+          className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'summary'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Summary
+        </button>
+        <button
           onClick={() => setActiveTab('highlights')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
             activeTab === 'highlights'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700'
@@ -109,7 +120,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
         </button>
         <button
           onClick={() => setActiveTab('comments')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
             activeTab === 'comments'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700'
@@ -119,7 +130,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
         </button>
         <button
           onClick={() => setActiveTab('notes')}
-          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
             activeTab === 'notes'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700'
@@ -131,6 +142,18 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'summary' && (
+          <div className="space-y-3">
+            {meeting.summary ? (
+              <Markdown content={meeting.summary} className="text-sm" />
+            ) : (
+              <div className="text-sm text-gray-500 text-center py-8">
+                No summary available
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'highlights' && (
           <div className="space-y-3">
             {condensedTranscript.map((entry, index) => {
@@ -141,7 +164,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
                     <span className="text-sm font-medium text-gray-700">{entry.speaker}</span>
                     <span className="text-xs text-gray-500">{entry.timestamp || ''}</span>
                   </div>
-                  <p className="text-sm text-gray-900 mb-2">{entry.text}</p>
+                  <div className="text-sm text-gray-900 mb-2 max-h-[200px] overflow-y-auto pr-2">
+                    {entry.text}
+                  </div>
                   {!isHighlighted && (
                     <button
                       onClick={() => handleAddHighlight(index, entry.text)}
@@ -168,7 +193,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
                     <span className="text-sm font-medium text-gray-700">{entry.speaker}</span>
                     <span className="text-xs text-gray-500">{entry.timestamp || ''}</span>
                   </div>
-                  <p className="text-sm text-gray-900 mb-2">{entry.text}</p>
+                  <div className="text-sm text-gray-900 mb-2 max-h-[200px] overflow-y-auto pr-2">
+                    {entry.text}
+                  </div>
                   
                   {entryComments.map((comment, cIndex) => (
                     <div key={cIndex} className="ml-4 mb-2 p-2 bg-gray-50 rounded text-xs">

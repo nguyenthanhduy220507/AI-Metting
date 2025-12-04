@@ -6,3 +6,6 @@ export { AudioWaveform } from "./common/AudioWaveform";
 export { AudioPlayer } from "./common/AudioPlayer";
 export { RightPanel } from "./common/RightPanel";
 export { LiveRecorder } from "./common/LiveRecorder";
+export { CreateMeetingModal } from "./common/CreateMeetingModal";
+export { EditSpeakerModal } from "./common/EditSpeakerModal";
+export { SpeakerDetectionsModal } from "./common/SpeakerDetectionsModal";

@@ -10,12 +10,14 @@ import {
   ArrowDown,
   ChevronUp,
   ChevronDown,
+  Plus,
 } from 'lucide-react';
 import { meetingsService } from '../../../services/meetings.service';
 import { Meeting, MeetingStatus } from '../../../types/Meeting.type';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import { CreateMeetingModal } from '../../../components';
 
 type SortField = 'title' | 'description' | 'status' | 'createdAt' | null;
 type SortDirection = 'asc' | 'desc';
@@ -30,6 +32,7 @@ const AllMeetings: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
 
   const fetchMeetings = async () => {
@@ -227,6 +230,14 @@ const AllMeetings: React.FC = () => {
             >
               <RefreshCw className="w-4 h-4" />
               <span className="text-sm">Refresh</span>
+            </button>
+
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="text-sm">Create Meeting</span>
             </button>
           </div>
         </div>
@@ -483,6 +494,15 @@ const AllMeetings: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         variant="danger"
+      />
+
+      {/* Create Meeting Modal */}
+      <CreateMeetingModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          fetchMeetings();
+        }}
       />
     </div>
   );

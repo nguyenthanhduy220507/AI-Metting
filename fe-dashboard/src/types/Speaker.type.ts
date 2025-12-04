@@ -20,6 +20,7 @@ export interface Speaker {
   status: SpeakerStatus;
   extra?: Record<string, unknown>;
   samples?: SpeakerSample[];
+  detectionCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

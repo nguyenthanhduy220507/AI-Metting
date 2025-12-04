@@ -29,14 +29,21 @@ const CreateSpeaker: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log('[CreateSpeaker] Submit triggered', {
+      name: name.trim(),
+      uploadedFiles: files.length,
+      recordedSamples: recordedSamples.length,
+    });
+
     if (!name.trim()) {
-      toast.error('Please enter a speaker name');
+      toast.error('Please enter a speaker name', { id: 'name-error' });
       return;
     }
 
     const allFiles = [...files, ...recordedSamples];
     if (allFiles.length === 0) {
-      toast.error('Please upload or record at least one audio sample');
+      console.error('[CreateSpeaker] No samples available');
+      toast.error('Please upload or record at least one audio sample', { id: 'samples-error' });
       return;
     }
 
@@ -214,20 +221,21 @@ const CreateSpeaker: React.FC = () => {
                 <LiveRecorder
                   onSamplesRecorded={setRecordedSamples}
                   maxSamples={5}
-                  minSamples={2}
+                  minSamples={3}
+                  speakerName={name}
                 />
               </div>
             )}
           </div>
 
           {/* Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> {inputMethod === 'upload' 
-                ? 'Upload at least one audio sample containing clear speech from the speaker. Multiple samples will improve recognition accuracy.'
-                : 'Record at least 2-5 audio samples by reading the provided scripts. Multiple samples will improve recognition accuracy.'}
-            </p>
-          </div>
+          {inputMethod === 'upload' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Upload at least one audio sample containing clear speech from the speaker. Multiple samples will improve recognition accuracy.
+              </p>
+            </div>
+          )}
 
           {/* Combined Samples Summary */}
           {(files.length > 0 || recordedSamples.length > 0) && (
@@ -257,7 +265,7 @@ const CreateSpeaker: React.FC = () => {
             <button
               type="submit"
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              disabled={uploading || !name.trim() || (files.length === 0 && recordedSamples.length === 0)}
+              disabled={uploading || !name.trim() || (inputMethod === 'recording' ? recordedSamples.length !== 5 : files.length === 0)}
             >
               {uploading ? (
                 <>

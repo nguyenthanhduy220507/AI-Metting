@@ -4,21 +4,23 @@ import {
   RefreshCw,
   Trash2,
   User,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
+  Edit,
+  Video,
+  Eye,
 } from 'lucide-react';
 import { speakersService } from '../../../services/speakers.service';
-import { Speaker, SpeakerStatus } from '../../../types/Speaker.type';
+import { Speaker } from '../../../types/Speaker.type';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { EditSpeakerModal, SpeakerDetectionsModal } from '../../../components';
 
 const AllSpeakers: React.FC = () => {
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [syncing, setSyncing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetectionsModal, setShowDetectionsModal] = useState(false);
+  const [selectedSpeaker, setSelectedSpeaker] = useState<Speaker | null>(null);
   const navigate = useNavigate();
 
   const fetchSpeakers = async () => {
@@ -39,6 +41,16 @@ const AllSpeakers: React.FC = () => {
   useEffect(() => {
     fetchSpeakers();
   }, []);
+
+  const handleEditClick = (speaker: Speaker) => {
+    setSelectedSpeaker(speaker);
+    setShowEditModal(true);
+  };
+
+  const handleViewDetections = (speaker: Speaker) => {
+    setSelectedSpeaker(speaker);
+    setShowDetectionsModal(true);
+  };
 
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete speaker "${name}"?`)) {
@@ -78,37 +90,6 @@ const AllSpeakers: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: SpeakerStatus) => {
-    switch (status) {
-      case SpeakerStatus.ACTIVE:
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case SpeakerStatus.FAILED:
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      case SpeakerStatus.ENROLLING:
-        return <Clock className="w-4 h-4 text-yellow-600 animate-spin" />;
-      default:
-        return <AlertCircle className="w-4 h-4 text-blue-600" />;
-    }
-  };
-
-  const getStatusColor = (status: SpeakerStatus) => {
-    switch (status) {
-      case SpeakerStatus.ACTIVE:
-        return 'bg-green-100 text-green-800';
-      case SpeakerStatus.FAILED:
-        return 'bg-red-100 text-red-800';
-      case SpeakerStatus.ENROLLING:
-        return 'bg-yellow-100 text-yellow-800';
-      case SpeakerStatus.PENDING:
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const filteredSpeakers = filterStatus === 'all'
-    ? speakers
-    : speakers.filter((s) => s.status === filterStatus);
 
   const formatDate = (date: Date | string) => {
     const d = new Date(date);
@@ -140,21 +121,6 @@ const AllSpeakers: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Filter:</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value={SpeakerStatus.PENDING}>Pending</option>
-                <option value={SpeakerStatus.ENROLLING}>Enrolling</option>
-                <option value={SpeakerStatus.ACTIVE}>Active</option>
-                <option value={SpeakerStatus.FAILED}>Failed</option>
-              </select>
-            </div>
-
             <button
               onClick={handleSyncFromPkl}
               disabled={syncing}
@@ -192,7 +158,7 @@ const AllSpeakers: React.FC = () => {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                Detections
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Samples
@@ -206,14 +172,14 @@ const AllSpeakers: React.FC = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredSpeakers.length === 0 ? (
+            {speakers.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                   No speakers found
                 </td>
               </tr>
             ) : (
-              filteredSpeakers.map((speaker) => (
+              speakers.map((speaker) => (
                 <tr
                   key={speaker.id}
                   className="hover:bg-gray-50 transition-colors"
@@ -229,16 +195,10 @@ const AllSpeakers: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div className="flex items-center space-x-2">
-                      {getStatusIcon(speaker.status)}
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                          speaker.status
-                        )}`}
-                      >
-                        {speaker.status}
-                      </span>
+                      <Video className="w-4 h-4 text-gray-400" />
+                      <span>{speaker.detectionCount || 0}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -249,6 +209,20 @@ const AllSpeakers: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleViewDetections(speaker)}
+                        className="p-1 hover:bg-emerald-100 rounded transition-colors text-emerald-600"
+                        title="View detections"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEditClick(speaker)}
+                        className="p-1 hover:bg-blue-100 rounded transition-colors text-blue-600"
+                        title="Edit name"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleDelete(speaker.id, speaker.name)}
                         className="p-1 hover:bg-red-100 rounded transition-colors text-red-600"
@@ -264,6 +238,28 @@ const AllSpeakers: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Speaker Modal */}
+      <EditSpeakerModal
+        isOpen={showEditModal}
+        speaker={selectedSpeaker}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedSpeaker(null);
+        }}
+        onSuccess={fetchSpeakers}
+      />
+
+      {/* Speaker Detections Modal */}
+      <SpeakerDetectionsModal
+        isOpen={showDetectionsModal}
+        speakerId={selectedSpeaker?.id || null}
+        speakerName={selectedSpeaker?.name || ''}
+        onClose={() => {
+          setShowDetectionsModal(false);
+          setSelectedSpeaker(null);
+        }}
+      />
     </div>
   );
 };

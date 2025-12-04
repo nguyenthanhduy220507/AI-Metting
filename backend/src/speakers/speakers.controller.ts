@@ -6,6 +6,7 @@ import {
   Get,
   Headers,
   Param,
+  Patch,
   Post,
   UploadedFiles,
   UseInterceptors,
@@ -15,6 +16,7 @@ import multer from 'multer';
 import { ConfigService } from '@nestjs/config';
 import { SpeakersService } from './speakers.service';
 import { CreateSpeakerDto } from './dto/create-speaker.dto';
+import { UpdateSpeakerDto } from './dto/update-speaker.dto';
 
 @Controller('speakers')
 export class SpeakersController {
@@ -52,6 +54,11 @@ export class SpeakersController {
     return this.speakersService.findOne(id);
   }
 
+  @Get(':id/detections')
+  getDetections(@Param('id') id: string) {
+    return this.speakersService.getDetections(id);
+  }
+
   @Post()
   @UseInterceptors(
     FilesInterceptor('samples', 5, {
@@ -64,6 +71,14 @@ export class SpeakersController {
     @UploadedFiles() files: Express.Multer.File[],
   ) {
     return this.speakersService.create(createSpeakerDto, files);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() updateSpeakerDto: UpdateSpeakerDto,
+  ) {
+    return this.speakersService.update(id, updateSpeakerDto);
   }
 
   @Delete(':id')
