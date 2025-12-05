@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Meeting } from '../../types/Meeting.type';
-import { meetingsService } from '../../services/meetings.service';
-import { toast } from 'sonner';
-import { Markdown } from '../../utils/markdownUtils';
+import React, { useState, useEffect } from "react";
+import { Meeting } from "../../types/Meeting.type";
+import { meetingsService } from "../../services/meetings.service";
+import { toast } from "sonner";
+import { Markdown } from "../../utils/markdownUtils";
 
 interface RightPanelProps {
   meeting: Meeting;
   onUpdate: () => void;
 }
 
-type TabType = 'summary' | 'highlights' | 'comments' | 'notes';
+type TabType = "summary" | "highlights" | "comments" | "notes";
 
 interface Highlight {
   transcriptIndex: number;
@@ -22,18 +22,24 @@ interface Comment {
   timestamp: Date;
 }
 
-export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('summary');
+export const RightPanel: React.FC<RightPanelProps> = ({
+  meeting,
+  onUpdate,
+}) => {
+  const [activeTab, setActiveTab] = useState<TabType>("summary");
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [notes, setNotes] = useState<string>('');
-  const [newComment, setNewComment] = useState<{ index: number; text: string } | null>(null);
+  const [notes, setNotes] = useState<string>("");
+  const [newComment, setNewComment] = useState<{
+    index: number;
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     const extra = meeting.extra || {};
     setHighlights((extra.highlights as Highlight[]) || []);
     setComments((extra.comments as Comment[]) || []);
-    setNotes((extra.notes as string) || '');
+    setNotes((extra.notes as string) || "");
   }, [meeting]);
 
   const saveExtra = async (updates: Record<string, unknown>) => {
@@ -45,10 +51,10 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
           ...updates,
         },
       });
-      toast.success('Saved successfully');
+      toast.success("Saved successfully");
       onUpdate();
     } catch (error: any) {
-      toast.error('Failed to save', {
+      toast.error("Failed to save", {
         description: error?.response?.data?.message || error.message,
       });
     }
@@ -62,7 +68,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
   };
 
   const handleAddComment = (index: number) => {
-    if (!newComment || newComment.index !== index || !newComment.text.trim()) return;
+    if (!newComment || newComment.index !== index || !newComment.text.trim())
+      return;
 
     const comment: Comment = {
       transcriptIndex: index,
@@ -88,52 +95,54 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
   };
 
   const getCondensedTranscript = (): TranscriptEntry[] => {
-    const transcript = (meeting.formattedLines || meeting.rawTranscript || []) as TranscriptEntry[];
+    const transcript = (meeting.formattedLines ||
+      meeting.rawTranscript ||
+      []) as TranscriptEntry[];
     return transcript.slice(0, 10); // Show first 10 entries as condensed view
   };
 
   const condensedTranscript = getCondensedTranscript();
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+    <div className="bg-white flex flex-col h-full min-h-0">
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 sticky top-0 bg-white z-10">
         <button
-          onClick={() => setActiveTab('summary')}
+          onClick={() => setActiveTab("summary")}
           className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'summary'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
+            activeTab === "summary"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
           Summary
         </button>
         <button
-          onClick={() => setActiveTab('highlights')}
+          onClick={() => setActiveTab("highlights")}
           className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'highlights'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
+            activeTab === "highlights"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
           Highlights
         </button>
         <button
-          onClick={() => setActiveTab('comments')}
+          onClick={() => setActiveTab("comments")}
           className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'comments'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
+            activeTab === "comments"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
           Comments
         </button>
         <button
-          onClick={() => setActiveTab('notes')}
+          onClick={() => setActiveTab("notes")}
           className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'notes'
-              ? 'text-blue-600 border-b-2 border-blue-600'
-              : 'text-gray-500 hover:text-gray-700'
+            activeTab === "notes"
+              ? "text-blue-600 border-b-2 border-blue-600"
+              : "text-gray-500 hover:text-gray-700"
           }`}
         >
           Notes
@@ -141,8 +150,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === 'summary' && (
+      <div className="flex-1 overflow-y-auto p-4 min-h-0">
+        {activeTab === "summary" && (
           <div className="space-y-3">
             {meeting.summary ? (
               <Markdown content={meeting.summary} className="text-sm" />
@@ -154,17 +163,23 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
           </div>
         )}
 
-        {activeTab === 'highlights' && (
+        {activeTab === "highlights" && (
           <div className="space-y-3">
             {condensedTranscript.map((entry, index) => {
-              const isHighlighted = highlights.some((h) => h.transcriptIndex === index);
+              const isHighlighted = highlights.some(
+                (h) => h.transcriptIndex === index
+              );
               return (
                 <div key={index} className="border-b border-gray-100 pb-3">
                   <div className="flex items-start justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">{entry.speaker}</span>
-                    <span className="text-xs text-gray-500">{entry.timestamp || ''}</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      {entry.speaker}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {entry.timestamp || ""}
+                    </span>
                   </div>
-                  <div className="text-sm text-gray-900 mb-2 max-h-[200px] overflow-y-auto pr-2">
+                  <div className="text-sm text-gray-900 mb-2 max-h-[220px] overflow-y-auto pr-2">
                     {entry.text}
                   </div>
                   {!isHighlighted && (
@@ -181,24 +196,33 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
           </div>
         )}
 
-        {activeTab === 'comments' && (
+        {activeTab === "comments" && (
           <div className="space-y-3">
             {condensedTranscript.map((entry, index) => {
-              const entryComments = comments.filter((c) => c.transcriptIndex === index);
+              const entryComments = comments.filter(
+                (c) => c.transcriptIndex === index
+              );
               const isAddingComment = newComment?.index === index;
 
               return (
                 <div key={index} className="border-b border-gray-100 pb-3">
                   <div className="flex items-start justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">{entry.speaker}</span>
-                    <span className="text-xs text-gray-500">{entry.timestamp || ''}</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      {entry.speaker}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {entry.timestamp || ""}
+                    </span>
                   </div>
                   <div className="text-sm text-gray-900 mb-2 max-h-[200px] overflow-y-auto pr-2">
                     {entry.text}
                   </div>
-                  
+
                   {entryComments.map((comment, cIndex) => (
-                    <div key={cIndex} className="ml-4 mb-2 p-2 bg-gray-50 rounded text-xs">
+                    <div
+                      key={cIndex}
+                      className="ml-4 mb-2 p-2 bg-gray-50 rounded text-xs"
+                    >
                       <p className="text-gray-700">{comment.comment}</p>
                       <span className="text-gray-500 text-xs">
                         {new Date(comment.timestamp).toLocaleString()}
@@ -210,7 +234,9 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
                     <div className="ml-4">
                       <textarea
                         value={newComment.text}
-                        onChange={(e) => setNewComment({ index, text: e.target.value })}
+                        onChange={(e) =>
+                          setNewComment({ index, text: e.target.value })
+                        }
                         placeholder="Add a comment..."
                         className="w-full p-2 border border-gray-300 rounded text-sm resize-none"
                         rows={2}
@@ -232,7 +258,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
                     </div>
                   ) : (
                     <button
-                      onClick={() => setNewComment({ index, text: '' })}
+                      onClick={() => setNewComment({ index, text: "" })}
                       className="text-xs text-blue-600 hover:text-blue-700"
                     >
                       + Add comment
@@ -244,7 +270,7 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
           </div>
         )}
 
-        {activeTab === 'notes' && (
+        {activeTab === "notes" && (
           <div>
             <textarea
               value={notes}
@@ -265,4 +291,3 @@ export const RightPanel: React.FC<RightPanelProps> = ({ meeting, onUpdate }) => 
     </div>
   );
 };
-
