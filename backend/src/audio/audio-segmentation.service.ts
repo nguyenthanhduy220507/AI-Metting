@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { promises as fs } from 'fs';
-import { join } from 'path';
-import { StorageService } from '../storage/storage.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { promises as fs } from "fs";
+import { join } from "path";
+import { StorageService } from "../storage/storage.service";
 
 const execAsync = promisify(exec);
 
@@ -27,11 +27,11 @@ export class AudioSegmentationService {
     private readonly configService: ConfigService,
   ) {
     this.segmentDuration = parseInt(
-      this.configService.get<string>('AUDIO_SEGMENT_DURATION', '600'),
+      this.configService.get<string>("AUDIO_SEGMENT_DURATION", "600"),
       10,
     );
     this.segmentOverlap = parseInt(
-      this.configService.get<string>('AUDIO_SEGMENT_OVERLAP', '30'),
+      this.configService.get<string>("AUDIO_SEGMENT_OVERLAP", "30"),
       10,
     );
   }
@@ -65,7 +65,7 @@ export class AudioSegmentationService {
 
     // Get worker concurrency from config
     const workerConcurrency = parseInt(
-      this.configService.get<string>('WORKER_CONCURRENCY', '8'),
+      this.configService.get<string>("WORKER_CONCURRENCY", "8"),
       10,
     );
 
@@ -83,7 +83,7 @@ export class AudioSegmentationService {
     const segmentsDir = join(
       this.storageService.getUploadRoot(),
       meetingId,
-      'segments',
+      "segments",
     );
     await fs.mkdir(segmentsDir, { recursive: true });
 
@@ -97,9 +97,9 @@ export class AudioSegmentationService {
       );
       const segmentStart = Math.max(0, currentStart - this.segmentOverlap);
 
-      const segmentFilename = `segment_${segmentIndex.toString().padStart(4, '0')}.wav`;
+      const segmentFilename = `segment_${segmentIndex.toString().padStart(4, "0")}.wav`;
       const segmentPath = join(segmentsDir, segmentFilename);
-      const relativePath = join(meetingId, 'segments', segmentFilename);
+      const relativePath = join(meetingId, "segments", segmentFilename);
 
       // Extract segment using FFmpeg
       await this.extractSegment(
@@ -200,7 +200,10 @@ export class AudioSegmentationService {
     startTime: number,
     duration: number,
   ): Promise<void> {
-    const command = `ffmpeg -i "${inputPath}" -ss ${startTime} -t ${duration} -acodec copy -y "${outputPath}"`;
+    // Use -ss before -i for faster seeking
+    // Re-encode audio to ensure accurate segment extraction (don't use -acodec copy)
+    // Use PCM format for WAV files to ensure compatibility
+    const command = `ffmpeg -ss ${startTime} -t ${duration} -i "${inputPath}" -acodec pcm_s16le -ar 16000 -ac 1 -y "${outputPath}"`;
     try {
       await execAsync(command);
     } catch (error) {
