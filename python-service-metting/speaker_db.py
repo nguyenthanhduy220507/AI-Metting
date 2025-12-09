@@ -120,32 +120,6 @@ class SpeakerDatabase:
             print(f"[WARN] Speaker not found: {speaker_name}")
             return False
     
-    def rename_speaker(self, old_name: str, new_name: str) -> bool:
-        """
-        Rename a speaker while preserving embeddings.
-        
-        Args:
-            old_name: Current speaker name
-            new_name: New speaker name
-            
-        Returns:
-            True if renamed successfully, False if old_name not found
-            
-        Raises:
-            ValueError: If new_name already exists
-        """
-        if old_name not in self.speakers:
-            print(f"[WARN] Speaker not found: {old_name}")
-            return False
-        
-        if new_name in self.speakers:
-            raise ValueError(f"Speaker '{new_name}' already exists")
-        
-        # Rename by moving embedding to new key
-        self.speakers[new_name] = self.speakers.pop(old_name)
-        print(f"[OK] Renamed speaker: {old_name} → {new_name}")
-        return True
-    
     def list_speakers(self) -> List[str]:
         """
         List all enrolled speakers.

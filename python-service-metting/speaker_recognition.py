@@ -41,16 +41,10 @@ class SpeakerRecognizer:
         print(f"[INFO] Loading ECAPA-TDNN model on device: {self.device}")
         
         self.classifier = EncoderClassifier.from_hparams(
-            source=model_source,
+            source="pretrained_models/ecapa-tdnn",
+            savedir=os.path.join("pretrained_models", "ecapa-tdnn"),
             run_opts={"device": self.device},
-            local_strategy=LocalStrategy.COPY,
-            savedir=os.path.join("pretrained_models", "ecapa-tdnn")
         )
-        # self.classifier = EncoderClassifier.from_hparams(
-        #     source="pretrained_models/ecapa-tdnn",
-        #     savedir=os.path.join("pretrained_models", "ecapa-tdnn"),
-        #     run_opts={"device": self.device},
-        # )
         
         self.cosine_sim = CosineSimilarity(dim=-1)
         
@@ -81,12 +75,7 @@ class SpeakerRecognizer:
         
         signal = signal.to(self.device)
         embedding = self.classifier.encode_batch(signal)
-        # Ensure embedding is 1D: [embedding_dim]
-        embedding = embedding.squeeze()
-        # If still multi-dimensional, flatten it
-        if embedding.dim() > 1:
-            embedding = embedding.flatten()
-        return embedding
+        return embedding.squeeze()
     
     def enroll_speaker(self, 
                       speaker_name: str, 
@@ -123,10 +112,7 @@ class SpeakerRecognizer:
         # Average embeddings
         avg_embedding = torch.stack(embeddings).mean(dim=0)
         self.db.add_speaker(speaker_name, avg_embedding)
-        saved = self.db.save()
         print(f"[OK] Enrolled speaker '{speaker_name}' with {len(embeddings)} samples")
-        if not saved:
-            print("[WARN] Failed to persist speaker database to disk")
         return True
     
     def enroll_speakers_from_directory(self, 
@@ -209,33 +195,8 @@ class SpeakerRecognizer:
         best_speaker = "Unknown"
         
         all_speakers = self.db.get_all_speakers()
-        
-        # Ensure unknown_embedding is properly shaped
-        unk_emb = unknown_embedding.flatten()
-        unk_dim = unk_emb.shape[0]
-        
         for name, db_embedding in all_speakers.items():
-            # Ensure both embeddings are 1D tensors
-            db_emb = db_embedding.flatten()
-            db_dim = db_emb.shape[0]
-            
-            # Check if dimensions match
-            if unk_dim != db_dim:
-                print(f"[WARN] Dimension mismatch for speaker '{name}': unknown={unk_dim}, db={db_dim}. Skipping.")
-                continue
-            
-            # Reshape to [1, embedding_dim] for cosine_sim
-            unk_emb_reshaped = unk_emb.unsqueeze(0)
-            db_emb_reshaped = db_emb.unsqueeze(0)
-            
-            # Compute cosine similarity (returns tensor with 1 element)
-            try:
-                score_tensor = self.cosine_sim(unk_emb_reshaped, db_emb_reshaped)
-                score = score_tensor.item() if score_tensor.numel() == 1 else score_tensor[0].item()
-            except Exception as e:
-                print(f"[WARN] Error computing similarity for speaker '{name}': {e}. Skipping.")
-                continue
-            
+            score = self.cosine_sim(unknown_embedding.to(self.device), db_embedding.to(self.device)).item()
             if score > best_score:
                 best_score = score
                 best_speaker = name
