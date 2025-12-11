@@ -8,33 +8,25 @@ Features model caching for faster subsequent loads.
 
 import torch
 from pyannote.audio import Pipeline
-from typing import Dict, Tuple
-from utils import get_time
-
-# Temporarily override torch.load to use weights_only=False
-original_load = torch.load
-
-def safe_load(*args, **kwargs):
-    # Force weights_only=False for pyannote compatibility
-    kwargs['weights_only'] = False
-    return original_load(*args, **kwargs)
-
-torch.load = safe_load
+from typing import Dict, Iterator, Tuple
 
 
 class Diarizer:
     """Performs speaker diarization using Pyannote."""
     
     def __init__(self, 
+                 huggingface_token: str,
                  device: str = None):
         """
         Initialize diarizer.
         
         Args:
+            huggingface_token: HuggingFace token for Pyannote models
             device: "cuda" or "cpu" (auto-detect if None)
             use_cache: If True, use model caching to avoid reloading
             cache_dir: Directory for model cache
         """
+        self.hf_token = huggingface_token
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.use_cache = use_cache
         self.cache = get_model_cache(cache_dir) if use_cache else None
@@ -44,14 +36,17 @@ class Diarizer:
         
         print(f"[INFO] Loading Pyannote diarization pipeline, cache={'enabled' if use_cache else 'disabled'}...")
         
-        self.pipeline = Pipeline.from_pretrained('pretrained_models/diarization/config.yaml')
+        self.pipeline = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=huggingface_token
+        )
+        # self.pipeline = Pipeline.from_pretrained('pretrained_models/diarization/config.yaml')
         
         if self.device == "cuda":
             self.pipeline.to(torch.device("cuda"))
         
         print(f"[OK] Pyannote pipeline loaded on device: {self.device}")
     
-    @get_time
     def diarize(self, audio_path: str) -> Dict:
         """
         Perform speaker diarization on audio file.

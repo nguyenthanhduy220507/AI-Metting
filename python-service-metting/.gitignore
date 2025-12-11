@@ -1,2 +1,10 @@
-nb.ipynb
-speaker_db/
+__pycache__
+AILAB-VNUHCM--vivos
+dataset
+pretrained_models
+.env
+README_INTEGRATED.md
+REFACTORING_NOTES.md
+speaker_samples
+meeting_output
+meeting.mp4

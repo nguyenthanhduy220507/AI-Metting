@@ -11,8 +11,7 @@ Supports:
 import torch
 import whisperx
 from typing import Dict
-from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-from utils import get_time
+import os
 
 
 class Transcriber:
@@ -38,16 +37,12 @@ class Transcriber:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.compute_type = compute_type or ("float16" if self.device == "cuda" else "int8")
         
-        self.trans_model_dir = "pretrained_models/models--Systran--faster-whisper-large-v2/snapshots/f0fe81560cb8b68660e564f55dd99207059c092e"
-        self.align_model_dir = "pretrained_models/wav2vec2-base-vi-vlsp2020"
-        
         print(f"[INFO] Transcriber initialized: model={model_size}, device={self.device}")
     
-    @get_time
     def transcribe(self, 
                    audio_path: str, 
                    language: str = "vi",
-                   batch_size: int = 1) -> Dict:
+                   batch_size: int = 16) -> Dict:
         """
         Transcribe audio file with timestamps.
         
@@ -58,32 +53,55 @@ class Transcriber:
             
         Returns:
             Dictionary with transcription result
+                {
+                    "segments": [
+                        {
+                            "id": 0,
+                            "seek": 0,
+                            "start": 0.0,
+                            "end": 5.0,
+                            "text": "transcribed text",
+                            "tokens": [...],
+                            "temperature": 0.0,
+                            "avg_logprob": -0.5,
+                            "compression_ratio": 1.2,
+                            "no_speech_prob": 0.0,
+                            "words": [  # word-level timestamps
+                                {"word": "hello", "start": 0.0, "end": 0.5},
+                                {"word": "world", "start": 0.5, "end": 1.0}
+                            ]
+                        },
+                        ...
+                    ],
+                    "language": "vi"
+                }
         """
         print(f"[PROCESS] Loading WhisperX model ({self.model_size})...")
         model = whisperx.load_model(
-            self.trans_model_dir, 
-            device=self.device, 
-            compute_type=self.compute_type,
-            language=language,
+            self.model_size, 
+            self.device, 
+            compute_type=self.compute_type
         )
         
         print(f"[PROCESS] Transcribing audio...")
         audio = whisperx.load_audio(audio_path)
         result = model.transcribe(audio, batch_size=batch_size, language=language)
- 
-        print(f"[PROCESS] Aligning timestamps...")        
-        align_model, align_metadata = self.load_align_model_offline(language)
+        
+        print(f"[PROCESS] Aligning timestamps...")
+        model_a, metadata = whisperx.load_align_model(
+            language_code=language, 
+            device=self.device
+        )
         result = whisperx.align(
             result["segments"], 
-            align_model, 
-            align_metadata, 
+            model_a, 
+            metadata, 
             audio, 
             self.device
         )
         
         print(f"[OK] Transcription complete: {len(result['segments'])} segments")
         return result
-    
     
     def format_segments(self, segments: list) -> list:
         """
@@ -104,16 +122,3 @@ class Transcriber:
                 "words": seg.get("words", [])
             })
         return formatted
-    
-    
-    def load_align_model_offline(self, language):
-        try:
-            processor = Wav2Vec2Processor.from_pretrained(self.align_model_dir)
-            align_model = Wav2Vec2ForCTC.from_pretrained(self.align_model_dir)
-        except Exception as e:
-            print(e)
-        pipeline_type = "huggingface"
-        align_model = align_model.to(self.device)
-        align_dictionary = {char.lower(): code for char,code in processor.tokenizer.get_vocab().items()}
-        align_metadata = {"language": language, "dictionary": align_dictionary, "type": pipeline_type} 
-        return align_model, align_metadata

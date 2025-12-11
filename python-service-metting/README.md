@@ -1,6 +1,10 @@
 # 🎤 Integrated Meeting Transcription & Speaker Identification System
 
-Hệ thống tự động ghi chép biên bản họp từ file audio
+Hệ thống tự động ghi chép biên bản họp từ file audio, kết hợp:
+- **Diarization** (Pyannote): Phát hiện ai đang nói
+- **Speech-to-Text** (WhisperX): Chuyển nói thành chữ
+- **Speaker Recognition** (ECAPA-TDNN): Nhận diện tên người nói
+
 ## 📋 Output Mẫu
 
 ```
@@ -16,7 +20,7 @@ Hệ thống tự động ghi chép biên bản họp từ file audio
 
 ### ⚠️ Requirements
 
-- **Python**: 3.9, 3.10, 3.11, hoặc 3.12 (recommended: **3.12.6**)
+- **Python**: 3.9, 3.10, 3.11, hoặc 3.12 (recommended: **3.10 hoặc 3.11**)
 - **RAM**: Tối thiểu 8GB (khuyên 16GB+)
 - **Disk**: 20GB+ (để download models)
 - **GPU** (optional): NVIDIA GPU + CUDA 12.1 (tăng tốc độ 10x)
@@ -30,7 +34,7 @@ python --version
 
 Nếu chưa cài hoặc phiên bản sai:
 - Download từ: https://www.python.org/downloads/
-- Chọn **Python 3.11 hoặc 3.12**
+- Chọn **Python 3.10 hoặc 3.11**
 - ✅ Tick: "Add Python to PATH"
 
 ### 2. Cài Đặt Dependencies
@@ -46,6 +50,27 @@ python -m pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
+**Lưu ý**: Cài `torch` theo platform của bạn:
+
+**Windows/macOS - CPU Only:**
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+```
+
+**Windows + NVIDIA GPU (CUDA 12.1):**
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+**macOS (Apple Silicon - M1/M2/M3):**
+```bash
+pip install torch torchvision torchaudio
+```
+
+Kiểm tra torch đã cài đúng:
+```python
+python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
+```
 
 ### 3. Chuẩn Bị Speaker Samples
 
@@ -73,12 +98,7 @@ Mỗi speaker cần: **1-3 file, mỗi file 5-10 giây ghi âm**
 2. Accept license: https://huggingface.co/pyannote/speaker-diarization-3.1
 3. Tạo token: https://huggingface.co/settings/tokens
 
-### 5. Download pretrained models
-```powershell
-git clone https://huggingface.co/kho4h2utr4n/meeting-ai-pretrained-models
-```
-
-### 6. Chạy
+### 5. Chạy
 
 ```powershell
 # Set token (Windows PowerShell)
@@ -90,6 +110,29 @@ python integrated_meeting_system.py enroll .\speaker_samples
 # Process meeting
 python integrated_meeting_system.py process .\meeting.wav .\speaker_samples vi
 ```
+
+### 6. Chạy FastAPI adapter (kết nối backend)
+
+```powershell
+# Chỉ cần chạy sau khi đã cài dependencies và set env:
+$env:HF_TOKEN='hf_xxxxx'
+$env:GOOGLE_API_KEY='AIza...'
+$env:BACKEND_CALLBACK_TOKEN='change-me'
+
+uvicorn api:app --host 0.0.0.0 --port 5000
+```
+
+Các biến môi trường tùy chọn:
+
+| Biến | Mặc định | Ý nghĩa |
+|------|----------|---------|
+| `DEFAULT_LANGUAGE` | `vi` | Ngôn ngữ WhisperX |
+| `ENROLL_DIR` | `./speaker_samples` | Thư mục chứa file enroll |
+| `OUTPUT_DIR` | `./meeting_output` | Nơi lưu kết quả + log |
+| `SPEAKER_DB_DIR` | `./speaker_db` | Database embeddings |
+| `SERVICE_API_TOKEN` | (mặc định = `BACKEND_CALLBACK_TOKEN`) | Token mà backend phải gửi trong header `x-service-token` khi gọi `/enroll-speaker` |
+
+API này expose các route `/process`, `/process-segment`, `/generate-summary` và `/enroll-speaker` giống hệt contract cũ của `python-service`, vì vậy backend/frontend không cần chỉnh sửa thêm ngoài việc trỏ `PYTHON_SERVICE_URL` sang service mới.
 
 ---
 
@@ -111,11 +154,9 @@ meeting_ai/
 │   ├── khoa.wav
 │   ├── an.wav
 │   └── binh.wav
-├── pretrained_models/              # Pretrained models
+├── pretrained_models/              # (auto-downloaded) Pretrained models
 │   ├── ecapa-tdnn/
-│   ├── diarization/
-│   ├── models--Systran--faster-whisper-large-v2/
-│   └── wav2vec2-base-vi-vlsp2020/
+│   └── asr/
 └── meeting_output/                 # (auto-created) Results
     ├── normalized_audio.wav
     ├── meeting_transcript_*.json

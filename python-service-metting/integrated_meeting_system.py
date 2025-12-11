@@ -30,8 +30,8 @@ from datetime import datetime
 import torch
 import torchaudio
 from tqdm import tqdm
-# from dotenv import load_dotenv
-from openai import OpenAI
+from dotenv import load_dotenv
+import google.generativeai as genai
 
 
 # Import custom modules
@@ -40,17 +40,16 @@ from speaker_recognition import SpeakerRecognizer
 from audio_processor import AudioProcessor
 from transcriber import Transcriber
 from diarizer import Diarizer
-from utils import get_time, format_timestamp
 
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
 
-# load_dotenv()
+load_dotenv()
 
 class IntegratedMeetingSystem:
     """Main orchestrator for meeting transcription and speaker identification."""
     
     def __init__(self, 
+                 huggingface_token: str,
+                 google_api_key: str,
                  device: str = None,
                  speaker_db_dir: str = "./speaker_db",
                  use_model_cache: bool = True,
@@ -66,6 +65,7 @@ class IntegratedMeetingSystem:
             model_cache_dir: Directory for model cache
         """
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.hf_token = huggingface_token
         
         print(f"\n[INFO] Initializing IntegratedMeetingSystem on device: {self.device}")
         print(f"[INFO] Model cache: {'enabled' if use_model_cache else 'disabled'}")
@@ -80,8 +80,10 @@ class IntegratedMeetingSystem:
         )
         self.audio_processor = AudioProcessor(target_sr=16000)
         self.transcriber = Transcriber(device=self.device)
-        self.diarizer = Diarizer(device=self.device)
-        self.summarization_model = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
+        self.diarizer = Diarizer(huggingface_token=huggingface_token, device=self.device)
+        
+        genai.configure(api_key=google_api_key)
+        self.summarization_model = genai.GenerativeModel('gemini-2.5-flash')
 
     
     def process_meeting(self,
@@ -143,6 +145,17 @@ class IntegratedMeetingSystem:
             # Step 7: Format output
             print("\n[STEP 7] Formatting output...")
             formatted_lines = self._format_output(merged)
+            raw_transcript = [
+                {
+                    "speaker": item["identified_speaker"],
+                    "text": item["text"],
+                    "timestamp": item["timestamp"],
+                    "start": item["start"],
+                    "end": item["end"],
+                    "confidence": item["confidence"],
+                }
+                for item in merged
+            ]
             
             # Print to console
             print("\n" + "=" * 70)
@@ -168,6 +181,7 @@ class IntegratedMeetingSystem:
                 },
                 "summary": summary,
                 "transcript": formatted_lines,
+                "raw_transcript": raw_transcript,
                 "statistics": {
                     "total_speakers": len(self.speaker_db),
                     "total_segments": len(formatted_lines),
@@ -220,6 +234,7 @@ class IntegratedMeetingSystem:
         full_audio, sr = torchaudio.load(audio_path)
         
         merged_output = []
+        
         for seg_idx, segment in enumerate(tqdm(transcript_result["segments"], desc="Processing segments")):
             start = segment["start"]
             end = segment["end"]
@@ -253,7 +268,7 @@ class IntegratedMeetingSystem:
                 "diarization_speaker": diar_speaker,
                 "identified_speaker": identified_speaker,
                 "confidence": float(confidence),
-                "timestamp": format_timestamp(start)
+                "timestamp": self._format_timestamp(start)
             })
         
         return merged_output
@@ -294,12 +309,18 @@ class IntegratedMeetingSystem:
         print(f"     JSON: {output_json}")
         print(f"     TXT:  {output_txt}")
     
-    @get_time
+    @staticmethod
+    def _format_timestamp(seconds: float) -> str:
+        """Convert seconds to [MM:SS] format."""
+        minutes = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"[{minutes:02d}:{secs:02d}]"
+    
     def generate_meeting_summary(self, merged_transcript: List[Dict]) -> Dict:
         """
-        Tạo summary và format output bằng Local LLM
+        Tạo summary và format output bằng Google Gemini API
         """
-        print("Đang tạo biên bản họp...")
+        print("Đang tạo biên bản họp với Gemini...")
         
         # Tạo transcript text
         transcript_text = "\n".join([
@@ -307,29 +328,49 @@ class IntegratedMeetingSystem:
             for item in merged_transcript
         ])
         
-        sys_prompt = open("summary_prompt.txt", 'r', encoding='utf-8').read()
-        transcript_text = "=== TRANSCRIPT CUỘC HỌP ===\n\n" + transcript_text
-        # print("[INPUT] SYSTEM PROMPT: ", sys_prompt)
-        # print("[INPUT] TRANSCRIPT TEXT: ", transcript_text)
+        prompt = f"""
+Hãy tóm tắt đoạn hội thoại nhiều người tham gia dưới đây thành Meeting Minutes theo đúng chuẩn chuyên nghiệp.
+Nếu tên người nói không xác định được, hãy thử phán đoán tên người nói dựa vào cuộc hội thoại nếu vẫn không chắc chắn thì ghi là ai đó.
+Giữ văn phong ngắn gọn, rõ ràng, trung lập.
+Cấu trúc bắt buộc:
+	1.	Meeting Information:
+	•	Date & Time:
+	•	Participants: (Liệt kê tên hoặc ký hiệu của từng người)
+	2.	Agenda: (Tóm tắt 1–3 ý chính đã được thảo luận)
+	3.	Discussion Summary:
+	•	Ghi rõ từng vấn đề được thảo luận và quan điểm của từng người (nếu xác định được).
+	•	Không thêm nội dung không tồn tại trong hội thoại.
+	•	Không diễn giải dài dòng.
+	4.	Decisions Made:
+	•	Các quyết định cuối cùng (nếu có).
+	5.	Action Items:
+	•	Task:
+	•	Assigned to:
+	•	Deadline:
+
+Đảm bảo Meeting Minutes ngắn gọn nhưng đầy đủ nội dung quan trọng.
+Đây là đoạn hội thoại cần tóm tắt:
+
+=== TRANSCRIPT ===
+{transcript_text}
+
+Hãy tạo biên bản họp theo đúng format yêu cầu.
+"""
         
         try:
-            # Ask the AI to use our function
-            # Connect to LM Studio
-            response = self.summarization_model.chat.completions.create(
-                model="vistral-7b-chat",
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": transcript_text}
-                ],
-            )
-            print("[RESPONSE] ", response)
-            summary_text = response.choices[0].message.content
+            response = self.summarization_model.generate_content(prompt)
+            summary_text = response.text
         except Exception as e:
-            print(f"⚠️  Lỗi khi gọi Summarization model: {str(e)}")
+            print(f"⚠️  Lỗi khi gọi Gemini API: {str(e)}")
+            print("💡 Kiểm tra:")
+            print("   1. API key có đúng không?")
+            print("   2. Đã enable Gemini API chưa?")
+            print("   3. Kết nối internet có ổn định không?")
             
             # Fallback: tạo summary đơn giản
             summary_text = "=== BIÊN BẢN HỌP ===\n\n"
-            summary_text += "⚠️ Không thể tạo tóm tắt tự động\n\n"
+            summary_text += "⚠️ Không thể tạo tóm tắt tự động (lỗi API)\n\n"
+            summary_text += "=== CHI TIẾT PHÁT BIỂU ===\n"
         
         print("✓ Đã tạo biên bản họp")
         
@@ -344,18 +385,24 @@ def main():
     
     command = sys.argv[1]
     
+    # Get HuggingFace token
+    hf_token = os.getenv("HF_TOKEN", None)
+    google_api_key = os.getenv("GOOGLE_API_KEY", None)
+    
     try:
         if command == "process":
             if len(sys.argv) < 4:
                 print("Usage: python integrated_meeting_system.py process <audio_file> <enroll_dir> [language]")
                 sys.exit(1)
             
-            # ARGS
             audio_path = sys.argv[2]
             enroll_dir = sys.argv[3]
             language = sys.argv[4] if len(sys.argv) > 4 else "vi"
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            speaker_db_dir="./speaker_db"
+            
+            if not hf_token:
+                print("\n[ERROR] HuggingFace token not provided!")
+                print("  Set: $env:HF_TOKEN='your_token'")
+                sys.exit(1)
             
             if not os.path.exists(audio_path):
                 print(f"[ERROR] Audio file not found: {audio_path}")
@@ -369,7 +416,7 @@ def main():
             print(f"[INFO] Enroll dir: {enroll_dir}")
             print(f"[INFO] Language: {language}")
             
-            system = IntegratedMeetingSystem(device=device, speaker_db_dir=speaker_db_dir)
+            system = IntegratedMeetingSystem(huggingface_token=hf_token, google_api_key=google_api_key)
             result = system.process_meeting(audio_path, enroll_dir, language=language)
         
         elif command == "enroll":
