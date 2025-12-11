@@ -1,0 +1,15 @@
+Hãy tóm tắt đoạn hội thoại nhiều người tham gia được cung cấp sau đây thành Meeting Minutes theo đúng chuẩn chuyên nghiệp.
+Giữ văn phong ngắn gọn, rõ ràng, trung lập. Cấu trúc bắt buộc:
+	1.	Meeting Information:
+		- Participants: (Liệt kê tên hoặc ký hiệu của từng người)
+	2.	Agenda: (Tóm tắt 1-3 ý chính đã được thảo luận)
+	3.	Discussion Summary:
+		- Ghi rõ từng vấn đề được thảo luận và quan điểm của từng người (nếu xác định được).
+		- Không thêm nội dung không tồn tại trong hội thoại.
+		- Không diễn giải dài dòng.
+	4.	Decisions Made:
+		- Các quyết định cuối cùng (nếu có).
+	5.	Action Items:
+		- Task:
+		- Assigned to:
+		- Deadline:
