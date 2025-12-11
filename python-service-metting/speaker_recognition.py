@@ -6,6 +6,7 @@ Supports:
   - Computing speaker embeddings from audio
   - Enrolling speakers from audio files
   - Identifying speakers by comparing embeddings
+  - Model caching for faster subsequent loads
 """
 
 import os
@@ -15,6 +16,7 @@ from typing import Tuple, Dict, List
 from torch.nn import CosineSimilarity
 from tqdm import tqdm
 from speaker_db import SpeakerDatabase
+from model_cache import get_model_cache
 
 
 class SpeakerRecognizer:
@@ -23,7 +25,9 @@ class SpeakerRecognizer:
     def __init__(self, 
                  model_source: str = "speechbrain/spkrec-ecapa-voxceleb",
                  device: str = None,
-                 speaker_db: SpeakerDatabase = None):
+                 speaker_db: SpeakerDatabase = None,
+                 use_cache: bool = True,
+                 cache_dir: str = "./model_cache"):
         """
         Initialize speaker recognizer.
         
@@ -31,21 +35,46 @@ class SpeakerRecognizer:
             model_source: ECAPA model source from SpeechBrain
             device: "cuda" or "cpu" (auto-detect if None)
             speaker_db: SpeakerDatabase instance (creates new if None)
+            use_cache: If True, use model caching to avoid reloading
+            cache_dir: Directory for model cache
         """
         from speechbrain.inference.speaker import EncoderClassifier
         from speechbrain.utils.fetching import LocalStrategy
         
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model_source = model_source
+        self.use_cache = use_cache
+        self.cache = get_model_cache(cache_dir) if use_cache else None
         
-        print(f"[INFO] Loading ECAPA-TDNN model on device: {self.device}")
+        # Cache key for this model
+        self.model_cache_key = f"ecapa_tdnn_{self.device}"
         
-        self.classifier = EncoderClassifier.from_hparams(
-            source=model_source,
-            run_opts={"device": self.device},
-            local_strategy=LocalStrategy.COPY,
-            savedir=os.path.join("pretrained_models", "ecapa-tdnn")
-        )
+        print(f"[INFO] Loading ECAPA-TDNN model on device: {self.device}, cache={'enabled' if use_cache else 'disabled'}")
+        
+        # Try to load from cache first (memory only). If cache returns metadata
+        # (dict), treat as not-loaded so we safely re-create the classifier.
+        self.classifier = None
+        if self.use_cache:
+            cached = self.cache.get(self.model_cache_key)
+            if cached is not None and not isinstance(cached, dict):
+                self.classifier = cached
+
+        # Load model if not cached in memory
+        if self.classifier is None:
+            self.classifier = EncoderClassifier.from_hparams(
+                source=model_source,
+                run_opts={"device": self.device},
+                local_strategy=LocalStrategy.COPY,
+                savedir=os.path.join("pretrained_models", "ecapa-tdnn")
+            )
+            # Cache the model for next use
+            if self.use_cache:
+                self.cache.set(self.model_cache_key, self.classifier, {
+                    "model_source": model_source,
+                    "device": self.device,
+                    "savedir": os.path.join("pretrained_models", "ecapa-tdnn"),
+                    "type": "ecapa_tdnn"
+                })
         # self.classifier = EncoderClassifier.from_hparams(
         #     source="pretrained_models/ecapa-tdnn",
         #     savedir=os.path.join("pretrained_models", "ecapa-tdnn"),

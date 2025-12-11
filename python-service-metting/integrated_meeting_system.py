@@ -33,6 +33,13 @@ from tqdm import tqdm
 from dotenv import load_dotenv
 import google.generativeai as genai
 
+# Allowlist safe globals that may appear in PyTorch checkpoints across versions.
+try:
+    # TorchVersion may appear in some saved checkpoints; allow it when loading.
+    torch.serialization.add_safe_globals([torch.torch_version.TorchVersion])
+except Exception:
+    pass
+
 
 # Import custom modules
 from speaker_db import SpeakerDatabase
@@ -40,6 +47,7 @@ from speaker_recognition import SpeakerRecognizer
 from audio_processor import AudioProcessor
 from transcriber import Transcriber
 from diarizer import Diarizer
+from model_cache import get_model_cache
 
 
 load_dotenv()
@@ -51,7 +59,9 @@ class IntegratedMeetingSystem:
                  huggingface_token: str,
                  google_api_key: str,
                  device: str = None,
-                 speaker_db_dir: str = "./speaker_db"):
+                 speaker_db_dir: str = "./speaker_db",
+                 use_model_cache: bool = True,
+                 model_cache_dir: str = "./model_cache"):
         """
         Initialize the integrated system.
         
@@ -59,18 +69,37 @@ class IntegratedMeetingSystem:
             huggingface_token: HuggingFace token for Pyannote
             device: "cuda" or "cpu" (auto-detect if None)
             speaker_db_dir: Directory for speaker database
+            use_model_cache: If True, use model caching to avoid reloading
+            model_cache_dir: Directory for model cache
         """
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.hf_token = huggingface_token
+        self.use_model_cache = use_model_cache
+        self.model_cache = get_model_cache(model_cache_dir) if use_model_cache else None
         
         print(f"\n[INFO] Initializing IntegratedMeetingSystem on device: {self.device}")
+        print(f"[INFO] Model cache: {'enabled' if use_model_cache else 'disabled'}")
         
         # Initialize modules
         self.speaker_db = SpeakerDatabase(db_dir=speaker_db_dir)
-        self.recognizer = SpeakerRecognizer(device=self.device, speaker_db=self.speaker_db)
+        self.recognizer = SpeakerRecognizer(
+            device=self.device, 
+            speaker_db=self.speaker_db,
+            use_cache=use_model_cache,
+            cache_dir=model_cache_dir
+        )
         self.audio_processor = AudioProcessor(target_sr=16000)
-        self.transcriber = Transcriber(device=self.device)
-        self.diarizer = Diarizer(huggingface_token=huggingface_token, device=self.device)
+        self.transcriber = Transcriber(
+            device=self.device,
+            use_cache=use_model_cache,
+            cache_dir=model_cache_dir
+        )
+        self.diarizer = Diarizer(
+            huggingface_token=huggingface_token, 
+            device=self.device,
+            use_cache=use_model_cache,
+            cache_dir=model_cache_dir
+        )
         
         genai.configure(api_key=google_api_key)
         self.summarization_model = genai.GenerativeModel('gemini-2.5-flash')
@@ -193,6 +222,26 @@ class IntegratedMeetingSystem:
                 shutil.rmtree(temp_dir)
             except:
                 pass
+    
+    def show_cache_info(self):
+        """Display model cache information."""
+        if self.model_cache:
+            self.model_cache.print_info()
+        else:
+            print("[INFO] Model caching is disabled")
+    
+    def clear_cache(self, model_name: str = None):
+        """
+        Clear model cache.
+        
+        Args:
+            model_name: Name of specific model to clear (all if None)
+        """
+        if self.model_cache:
+            self.model_cache.clear(model_name)
+            print(f"[OK] Cache cleared: {model_name or 'all'}")
+        else:
+            print("[INFO] Model caching is disabled")
     
     def _merge_transcript_diarization_and_identify(self,
                                                    transcript_result: Dict,
@@ -433,6 +482,20 @@ def main():
             else:
                 print("[INFO] Cancelled")
         
+        elif command == "cache-info":
+            # Show cache information without loading models
+            cache = get_model_cache()
+            cache.print_info()
+        
+        elif command == "clear-cache":
+            confirm = input("[WARNING] Delete all cached models? (y/n): ")
+            if confirm.lower() == 'y':
+                cache = get_model_cache()
+                cache.clear()
+                print("[OK] All cached models cleared")
+            else:
+                print("[INFO] Cancelled")
+        
         else:
             print(f"[ERROR] Unknown command: {command}")
             _print_help()
@@ -459,6 +522,23 @@ def _print_help():
     print("    Enroll speakers from directory")
     print("")
     print("  list-speakers")
+    print("    List all enrolled speakers")
+    print("")
+    print("  remove-speaker <speaker_name>")
+    print("    Remove a speaker from database")
+    print("")
+    print("  clear-db")
+    print("    Clear all speakers from database")
+    print("")
+    print("  cache-info")
+    print("    Show model cache information and size")
+    print("")
+    print("  clear-cache")
+    print("    Delete all cached models (requires confirmation)")
+    print("")
+    print("Environment variables:")
+    print("  HF_TOKEN=<token>          HuggingFace token for Pyannote")
+    print("  GOOGLE_API_KEY=<key>      Google API key for Gemini")
     print("    List enrolled speakers")
     print("")
     print("  remove-speaker <speaker_name>")

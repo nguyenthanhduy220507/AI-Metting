@@ -1,0 +1,10 @@
+{
+  "ecapa_tdnn_cuda": {
+    "cached_at": "2025-12-11T15:06:36.726006",
+    "cache_path": "./model_cache\\810491707321643e88f1629f855848ab.pkl",
+    "model_source": "speechbrain/spkrec-ecapa-voxceleb",
+    "device": "cuda",
+    "savedir": "pretrained_models\\ecapa-tdnn",
+    "type": "ecapa_tdnn"
+  }
+}
